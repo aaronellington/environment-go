@@ -69,7 +69,6 @@ func (env Environment) Decode(target any) error {
 
 			fieldInstance.SetInt(int64(convertedValue))
 		}
-
 	}
 
 	return nil
