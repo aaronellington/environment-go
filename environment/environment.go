@@ -9,19 +9,35 @@ import (
 	"strings"
 )
 
-func New(useExistingValuesFromSystem bool) *Environment {
-	env := &Environment{
-		vars: map[string]string{},
+func New() *Environment {
+	env := NewEmpty()
+
+	for _, e := range os.Environ() {
+		pair := strings.SplitN(e, "=", 2)
+		env.vars[pair[0]] = pair[1]
 	}
 
-	if useExistingValuesFromSystem {
-		for _, e := range os.Environ() {
-			pair := strings.SplitN(e, "=", 2)
-			env.vars[pair[0]] = pair[1]
+	filesToCheck := []string{
+		".env.local",
+		".env",
+	}
+
+	for _, fileToCheck := range filesToCheck {
+		envFile, err := os.Open(fileToCheck)
+		if err == nil {
+			if err := env.Encode(envFile); err != nil {
+				panic(err)
+			}
 		}
 	}
 
 	return env
+}
+
+func NewEmpty() *Environment {
+	return &Environment{
+		vars: map[string]string{},
+	}
 }
 
 type Environment struct {
@@ -60,7 +76,6 @@ func (env Environment) Decode(target any) error {
 			}
 
 			fieldInstance.SetBool(convertedValue)
-
 		case reflect.Int:
 			convertedValue, err := strconv.Atoi(valueFromEnv)
 			if err != nil {
@@ -82,6 +97,10 @@ func (env Environment) Encode(reader io.Reader) error {
 
 	for _, line := range strings.Split(string(bodyBytes), "\n") {
 		parts := strings.SplitN(line, "=", 2)
+		if len(parts) < 2 {
+			continue
+		}
+
 		key := parts[0]
 		value := parts[1]
 
