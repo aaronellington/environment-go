@@ -2,6 +2,7 @@ package environment
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"reflect"
@@ -56,13 +57,25 @@ func (env Environment) Decode(target any) error {
 		fieldInstance := targetInstance.Field(i)
 		fieldDefinition := targetInstance.Type().Field(i)
 
-		tag := fieldDefinition.Tag.Get("env")
+		fullTag := fieldDefinition.Tag.Get("env")
+		tagParts := strings.Split(fullTag, ",")
+		tag := tagParts[0]
+
+		required := false
+		if len(tagParts) >= 2 && tagParts[1] == "required" {
+			required = true
+		}
+
 		if tag == "" {
 			continue
 		}
 
 		valueFromEnv, ok := env.vars[tag]
 		if !ok {
+			if required {
+				return fmt.Errorf("missing required ENV var: %s", tag)
+			}
+
 			continue
 		}
 
